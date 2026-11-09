@@ -192,6 +192,10 @@ input[type=text] { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10p
 .art-far { stroke: var(--art-far); }
 .art-arrow { stroke: var(--ink); stroke-width: 2.5; }
 .art-label { fill: var(--ink-2); font-size: 13px; font-weight: 600; }
+.effort { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.effort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.effort-btn { display: flex; flex-direction: column; gap: 1px; text-align: left; min-height: 48px; padding: 7px 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; }
+.effort-btn[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); }
 .set-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .set-actions .ghost { min-height: 40px; padding: 6px 14px; font-size: .9rem; }
 .set-actions .ghost:disabled { opacity: .45; }

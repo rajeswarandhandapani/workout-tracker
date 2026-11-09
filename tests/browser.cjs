@@ -140,6 +140,16 @@ async function noOverflow(page, label) {
   for (const n of [0, 1, 2]) { await tick(page, 'chest-press', n).click(); await page.getByRole('button', { name: 'Skip' }).click(); }
   assert.equal(await testId(page, 'set-count').textContent(), '7 of 13 sets');
   assert.ok(await exercise(page, 'chest-press').evaluate(e => e.classList.contains('complete')));
+
+  // Rating is offered only once every set is ticked, and answers straight away.
+  const nextHint = exercise(page, 'chest-press').locator('[data-testid="next-time"]');
+  assert.equal(await exercise(page, 'seated-row').locator('.effort').isVisible(), false);
+  await exercise(page, 'chest-press').getByRole('button', { name: 'Chest press machine felt: Form slipped' }).click();
+  assert.equal(await nextHint.textContent(), 'Next time: Drop to 35 lb and keep every rep controlled.');
+  await exercise(page, 'chest-press').getByRole('button', { name: 'Chest press machine felt: Good' }).click();
+  assert.equal(await nextHint.textContent(), 'Next time: Stay at 40 lb and aim for 11 reps.');
+  assert.equal(await exercise(page, 'chest-press').locator('[data-effort="good"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await exercise(page, 'chest-press').locator('[data-effort="max"]').getAttribute('aria-pressed'), 'false');
   await exercise(page, 'chest-press').getByRole('button', { name: /^Remove last set/ }).click();
   await page.locator('#toast', { hasText: 'Untick the last set' }).waitFor();
   assert.equal(await setRows('chest-press').count(), 3, 'a ticked set is not removed');
@@ -175,6 +185,7 @@ async function noOverflow(page, label) {
   assert.equal(await testId(page, 'set-count').textContent(), '7 of 13 sets');
   assert.equal(await tick(page, 'leg-press', 0).getAttribute('aria-pressed'), 'true');
   assert.equal(await tick(page, 'chest-press', 2).getAttribute('aria-pressed'), 'true', 'the third set is saved');
+  assert.equal(await exercise(page, 'chest-press').locator('[data-effort="good"]').getAttribute('aria-pressed'), 'true', 'the rating is saved');
   assert.equal(await exercise(page, 'seated-row').locator('h3').textContent(), 'Single-arm dumbbell row');
   assert.equal(await testId(page, 'gym-pre-count').textContent(), '1 of 6');
   assert.equal(await testId(page, 'gym-post-count').textContent(), '7 of 7');
@@ -206,6 +217,9 @@ async function noOverflow(page, label) {
   assert.equal(await weight(page, 'leg-press', 0).inputValue(), '60');
   assert.ok(await exercise(page, 'leg-press').getByText('Last, Nov 9: 60 lb × 12, 60 lb × 12').isVisible());
   assert.ok(await exercise(page, 'leg-press').getByText('try a small increase').isVisible());
+  assert.equal(await exercise(page, 'chest-press').locator('[data-testid="suggestion"]').textContent(), 'Suggested: Stay at 40 lb and aim for 11 reps.');
+  assert.equal(await setRows('chest-press').first().locator('input').nth(1).inputValue(), '11', 'the suggestion fills in the reps');
+  assert.equal(await exercise(page, 'leg-press').locator('[data-testid="suggestion"]').count(), 0, 'no rating, no suggestion');
   assert.equal(await setRows('chest-press').count(), 3, 'three sets carry to the next session');
   assert.equal(await weight(page, 'chest-press', 2).inputValue(), '40');
   assert.equal(await testId(page, 'set-count').textContent(), '0 of 13 sets');
@@ -324,6 +338,7 @@ async function noOverflow(page, label) {
   // Backup, erase, restore.
   await nav(page, 'Data');
   await noOverflow(page, 'Data');
+  await page.getByRole('combobox', { name: 'Smallest weight jump' }).selectOption('10');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download backup' }).click()]);
   assert.equal(dl.suggestedFilename(), 'workout-tracker-2026-11-11.json');
   const backupPath = path.join(OUT, dl.suggestedFilename());
@@ -346,6 +361,11 @@ async function noOverflow(page, label) {
   assert.equal(await testId(page, 'week-cardio').textContent(), '25 of 150 min');
   assert.equal(await page.getByRole('textbox', { name: 'Note for this day' }).inputValue(), '<img src=x onerror="window.__xss=1">');
   assert.equal(await page.evaluate(() => window.__xss), undefined);
+
+  await nav(page, 'Data');
+  assert.equal(await page.getByRole('combobox', { name: 'Smallest weight jump' }).inputValue(), '10', 'settings come back with a backup');
+  await nav(page, 'Today');
+  await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
 
   // The routine and created exercises come back with a backup, and can be logged.
   const restored = page.locator('.exercise', { hasText: 'Cable crunch' });
