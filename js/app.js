@@ -4,7 +4,7 @@ import * as store from './store.js';
 import { h, select, toast, confirmIt, download, longDate, shortDate, dayLetter, dayName } from './ui.js';
 import { startRest, stopRest } from './timer.js';
 import { weeklyBars, lineChart } from './charts.js';
-import { exerciseArt } from './art.js';
+import { exerciseAnimation, exerciseArt } from './art.js';
 import {
   CARDIO_GOAL, CARDIO_NOTES, CARDIO_TYPES, CHECK_FIRST, CUSTOM_KINDS, EFFORTS, WEIGHT_STEPS, EXERCISES, FOLLOW_UP, FOOD_NOTES, GYM_NOTES, GYM_PER_WEEK, HEART_RATE, MOVES,
   MAX_SETS, PHASES, ROUTINES, SAFETY, SCHEDULE, SCHEDULE_ORDER, WEEKS, alternatesOf, cardioName, customMove, lookupMove, phaseOf, target,
@@ -338,10 +338,13 @@ function exerciseCard(day, slot, afterChange) {
   const swapButton = choices.length ? h('button', { class: 'link swap-btn', type: 'button', 'aria-label': `Swap ${ex.name}`, onclick: () => { swapList.hidden = !swapList.hidden; } }, swapped ? 'Change' : 'Machine taken? Swap') : null;
 
   const thumb = exerciseArt(ex.id, { thumb: true });
-  const artView = thumb ? h('div', { hidden: true }, exerciseArt(ex.id, { name: ex.name })) : null;
+  const demo = thumb ? exerciseAnimation(ex.id, { name: ex.name }) : null;
+  const artView = thumb ? h('div', { hidden: true }, demo.el) : null;
   const artButton = thumb ? h('button', { class: 'art-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${ex.name}`, onclick: () => {
     artView.hidden = !artView.hidden;
     artButton.setAttribute('aria-expanded', String(!artView.hidden));
+    if (artView.hidden) demo.stop();
+    else demo.start();
   } }, thumb) : null;
 
   const card = h('article', { class: 'exercise', 'data-exercise': slot.id },

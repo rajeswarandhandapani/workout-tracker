@@ -205,6 +205,9 @@ input[type=text] { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10p
 .ex-title { flex: 1; min-width: 0; }
 .art-thumb { flex: none; width: 76px; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: none; cursor: pointer; }
 .art-single { max-width: 60%; margin: 0 auto; }
+.art-demo { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.art-anim { max-width: 340px; border-radius: 12px; overflow: hidden; }
+.art-pause { min-height: 40px; padding: 4px 18px; font-size: .9rem; }
 .swap-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .swap-option .art { flex: none; width: 64px; border-radius: 8px; overflow: hidden; }
 .swap-option { display: flex; align-items: center; gap: 10px; text-align: left; min-height: 44px; padding: 8px 12px; background: transparent; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; }

@@ -63,13 +63,42 @@ async function noOverflow(page, label) {
   });
   assert.deepEqual(noArt, [], 'exercises without a drawing');
   assert.equal(await page.locator('.exercise .art-thumb').count(), 6);
-  const legArt = exercise(page, 'leg-press').getByRole('img', { name: 'Leg press: start and finish positions' });
+  const silent = await page.evaluate(async () => {
+    const art = await import('/js/art.js');
+    const plan = await import('/js/plan.js');
+    return plan.MOVES.filter(m => m.id !== 'plank' && !art.exerciseAnimation(m.id, { name: m.name }).el.querySelector('.art-pause')).map(m => m.id);
+  });
+  assert.deepEqual(silent, [], 'exercises without an animation');
+  const legArt = exercise(page, 'leg-press').getByRole('img', { name: 'Leg press: animated demonstration' });
+  const artLabel = legArt.locator('.art-label');
+  const artShape = () => exercise(page, 'leg-press').locator('.art-anim').evaluate(e => e.innerHTML);
   assert.equal(await legArt.isVisible(), false);
   await page.getByRole('button', { name: 'Show how to do Leg press' }).click();
   assert.ok(await legArt.isVisible());
   await noOverflow(page, 'Today with a drawing open');
+  const firstFrame = await artShape();
+  await page.clock.runFor(900);
+  assert.equal(await artLabel.textContent(), 'Push out');
+  assert.notEqual(await artShape(), firstFrame, 'the drawing moves');
+  await page.clock.runFor(300);
+  assert.equal(await artLabel.textContent(), 'Pause');
+  await page.clock.runFor(1000);
+  assert.equal(await artLabel.textContent(), 'Lower with control');
+  await page.getByRole('button', { name: 'Pause Leg press demonstration' }).click();
+  const paused = await artShape();
+  await page.clock.runFor(500);
+  assert.equal(await artShape(), paused, 'pause holds the drawing still');
+  await page.getByRole('button', { name: 'Play Leg press demonstration' }).click();
+  await page.clock.runFor(300);
+  assert.notEqual(await artShape(), paused, 'play carries on');
   await page.getByRole('button', { name: 'Show how to do Leg press' }).click();
   assert.equal(await legArt.isVisible(), false);
+  const closed = await artShape();
+  await page.clock.runFor(500);
+  assert.equal(await artShape(), closed, 'closing stops the animation');
+  await exercise(page, 'plank').getByRole('button', { name: 'Show how to do Plank' }).click();
+  assert.ok(await exercise(page, 'plank').getByRole('img', { name: 'Plank: position to hold' }).isVisible());
+  await exercise(page, 'plank').getByRole('button', { name: 'Show how to do Plank' }).click();
 
   // Monday: a set needs a weight, then the rest timer runs.
   await prevDay(page); await prevDay(page);
@@ -381,7 +410,7 @@ async function noOverflow(page, label) {
 
   // Works with no network once the service worker has the files.
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v3'));
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v4'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
@@ -389,6 +418,14 @@ async function noOverflow(page, label) {
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
   await context.setOffline(false);
+
+  // People who ask for less motion get still pictures.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await nav(page, 'Progress');
+  await nav(page, 'Today');
+  await page.getByRole('button', { name: 'Show how to do Leg press' }).click();
+  assert.ok(await page.getByRole('img', { name: 'Leg press: start and finish positions' }).isVisible());
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
 
   // Dark mode, and the installable manifest.
   await page.emulateMedia({ colorScheme: 'dark' });
