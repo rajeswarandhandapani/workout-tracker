@@ -229,7 +229,6 @@ details.routine { margin-top: 0; }
 .routine summary + .step { margin-top: 8px; }
 .step .check { flex: 1; min-width: 0; }
 .step-text { display: flex; flex-direction: column; min-width: 0; }
-.step.watch { background: var(--accent-soft); border-top-color: transparent; border-radius: 8px; padding: 4px 10px; }
 .time-btn { flex: none; min-width: 62px; padding: 0 8px; font-variant-numeric: tabular-nums; }
 
 .cardio-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

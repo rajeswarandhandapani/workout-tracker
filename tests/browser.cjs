@@ -429,7 +429,7 @@ async function noOverflow(page, label) {
 
   // Works with no network once the service worker has the files.
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v5'));
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v6'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
