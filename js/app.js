@@ -4,7 +4,7 @@ import * as store from './store.js';
 import { h, select, toast, confirmIt, download, longDate, shortDate, dayLetter, dayName } from './ui.js';
 import { startRest, stopRest } from './timer.js';
 import { weeklyBars, lineChart } from './charts.js';
-import { exerciseAnimation, exerciseArt } from './art.js';
+import { exerciseAnimation, exerciseArt, muscleDiagram } from './art.js';
 import {
   CARDIO_GOAL, CARDIO_NOTES, CARDIO_TYPES, CHECK_FIRST, CUSTOM_KINDS, EFFORTS, WEIGHT_STEPS, EXERCISES, FOLLOW_UP, FOOD_NOTES, GYM_NOTES, GYM_PER_WEEK, HEART_RATE, MOVES,
   MAX_SETS, PHASES, ROUTINES, SAFETY, SCHEDULE, SCHEDULE_ORDER, WEEKS, alternatesOf, cardioName, customMove, lookupMove, phaseOf, target,
@@ -352,22 +352,26 @@ function exerciseCard(day, slot, afterChange) {
         m.how && h('span', { class: 'muted small-text' }, m.how))))) : null;
   const swapButton = choices.length ? h('button', { class: 'link swap-btn', type: 'button', 'aria-label': `Swap ${ex.name}`, onclick: () => { swapList.hidden = !swapList.hidden; } }, swapped ? 'Change' : 'Machine taken? Swap') : null;
 
-  const thumb = exerciseArt(ex.id, { thumb: true });
-  const demo = thumb ? exerciseAnimation(ex.id, { name: ex.name }) : null;
-  const artView = thumb ? h('div', { hidden: true }, demo.el) : null;
-  const artHint = thumb ? h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'How to') : null;
-  const artButton = thumb ? h('button', { class: 'art-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${ex.name}`, onclick: () => {
+  const thumb = exerciseArt(ex.id, { thumb: true, kind: ex.kind });
+  const demo = thumb && !ex.custom ? exerciseAnimation(ex.id, { name: ex.name, kind: ex.kind }) : null;
+  const artView = demo ? h('div', { hidden: true }, demo.el) : null;
+  const artHint = demo ? h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'How to') : null;
+  const artButton = demo ? h('button', { class: 'art-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${ex.name}`, onclick: () => {
     artView.hidden = !artView.hidden;
     artButton.setAttribute('aria-expanded', String(!artView.hidden));
     artHint.textContent = artView.hidden ? 'How to' : 'Hide';
     if (artView.hidden) demo.stop();
     else demo.start();
-  } }, thumb, artHint) : null;
+  } }, thumb, artHint) : (thumb ? h('div', { class: 'art-thumb art-placeholder' }, thumb, h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'Custom')) : null);
 
   const card = h('article', { class: 'exercise', 'data-exercise': slot.id },
     h('div', { class: 'ex-head' },
       artButton,
-      h('div', { class: 'ex-title' }, h('h3', {}, ex.name), h('p', { class: 'muted small-text' }, swapped ? `Instead of ${slot.name}` : ex.focus)),
+      h('div', { class: 'ex-title' },
+        h('h3', {}, ex.name),
+        h('p', { class: 'muted small-text focus-line' },
+          muscleDiagram(ex.focus),
+          h('span', {}, swapped ? `Instead of ${slot.name}` : ex.focus))),
       h('span', { class: 'target' }, target(ex))),
     artView,
     ex.how && h('p', { class: 'muted small-text' }, ex.how),
@@ -499,9 +503,23 @@ function routineCard(day, key) {
         update();
         if (doneCount() === routine.steps.length) box.open = false;
       } });
-      return h('div', { class: `step${step.watch ? ' watch' : ''}` },
-        h('label', { class: 'check' }, input, h('span', { class: 'step-text' }, h('strong', {}, step.text), h('span', { class: 'muted small-text' }, step.detail))),
-        step.seconds && h('button', { class: 'ghost time-btn', type: 'button', 'aria-label': `Start ${stamp(step.seconds)} timer for ${step.text}`, onclick: () => startRest(step.seconds, { beep: S.settings.beep, label: step.text }) }, stamp(step.seconds)));
+      const thumb = exerciseArt(step.id, { thumb: true });
+      const demo = thumb ? exerciseAnimation(step.id, { name: step.text }) : null;
+      const artView = demo ? h('div', { class: 'step-art', hidden: true }, demo.el) : null;
+      const artHint = demo ? h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'How to') : null;
+      const artBtn = demo ? h('button', { class: 'art-thumb step-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${step.text}`, onclick: () => {
+        artView.hidden = !artView.hidden;
+        artBtn.setAttribute('aria-expanded', String(!artView.hidden));
+        artHint.textContent = artView.hidden ? 'How to' : 'Hide';
+        if (artView.hidden) demo.stop();
+        else demo.start();
+      } }, thumb, artHint) : null;
+      return h('div', { class: 'step-wrap' },
+        h('div', { class: `step${step.watch ? ' watch' : ''}` },
+          h('label', { class: 'check' }, input, h('span', { class: 'step-text' }, h('strong', {}, step.text), h('span', { class: 'muted small-text' }, step.detail))),
+          artBtn,
+          step.seconds && h('button', { class: 'ghost time-btn', type: 'button', 'aria-label': `Start ${stamp(step.seconds)} timer for ${step.text}`, onclick: () => startRest(step.seconds, { beep: S.settings.beep, label: step.text }) }, stamp(step.seconds))),
+        artView);
     }));
   return box;
 }
@@ -718,7 +736,7 @@ function planView() {
     h('section', { class: 'card' }, h('h2', {}, 'Stages'),
       PHASES.map(p => h('div', { class: `phase${week >= p.from && week <= p.to ? ' current' : ''}` }, h('strong', {}, `Weeks ${p.from}–${p.to}`), h('span', {}, p.name)))),
     h('section', { class: 'card', id: 'plan-gym' }, h('h2', {}, 'Full-body gym workout'),
-      h('table', {}, h('tbody', {}, EXERCISES.map(e => h('tr', {}, h('th', { scope: 'row' }, e.name), h('td', { class: 'muted' }, e.focus), h('td', { class: 'r' }, target(e)))))),
+      h('table', {}, h('tbody', {}, EXERCISES.map(e => h('tr', {}, h('th', { scope: 'row' }, e.name), h('td', { class: 'muted' }, h('span', { class: 'focus-line' }, muscleDiagram(e.focus), h('span', {}, e.focus))), h('td', { class: 'r' }, target(e)))))),
       h('h3', { class: 'sub' }, 'Each gym visit'), list(GYM_NOTES)),
     h('section', { class: 'card', id: 'plan-swap' }, h('h2', {}, 'If a machine is taken'),
       h('p', { class: 'muted' }, 'Tap Swap on an exercise during your workout. Each alternate keeps its own weight history.'),

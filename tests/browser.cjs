@@ -55,14 +55,16 @@ async function noOverflow(page, label) {
   assert.ok(await page.getByRole('button', { name: 'Next day' }).isDisabled(), 'future days cannot be logged');
   await noOverflow(page, 'Today');
 
-  // Every built-in exercise has a drawing, and tapping it shows start and finish.
+  // Every built-in exercise and non-watch routine step has a drawing, and tapping it shows start and finish.
   const noArt = await page.evaluate(async () => {
     const art = await import('/js/art.js');
     const plan = await import('/js/plan.js');
-    return plan.MOVES.filter(m => !art.hasArt(m.id)).map(m => m.id);
+    const steps = Object.values(plan.ROUTINES).flatMap(r => r.steps.filter(s => !s.watch));
+    return [...plan.MOVES, ...steps].filter(m => !art.hasArt(m.id)).map(m => m.id);
   });
-  assert.deepEqual(noArt, [], 'exercises without a drawing');
+  assert.deepEqual(noArt, [], 'exercises or steps without a drawing');
   assert.equal(await page.locator('.exercise .art-thumb').count(), 6);
+  assert.equal(await page.locator('.exercise .muscle-map').count(), 6);
   const silent = await page.evaluate(async () => {
     const art = await import('/js/art.js');
     const plan = await import('/js/plan.js');
@@ -323,7 +325,7 @@ async function noOverflow(page, label) {
   await page.getByRole('button', { name: 'Create and add' }).click();
   const crunch = page.locator('.exercise', { hasText: 'Cable crunch' });
   assert.equal(await crunch.locator('.set:not(.head)').first().locator('input').count(), 1, 'reps only, no weight box');
-  assert.equal(await crunch.locator('.art-thumb').count(), 0, 'a created exercise has no drawing');
+  assert.equal(await crunch.locator('.art-thumb.art-placeholder').count(), 1, 'a created exercise gets a placeholder drawing');
   assert.equal(await cards.count(), 6);
 
   // A mistaken exercise can be deleted while it has no history.
@@ -429,7 +431,7 @@ async function noOverflow(page, label) {
 
   // Works with no network once the service worker has the files.
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v6'));
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v7'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
