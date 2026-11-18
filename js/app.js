@@ -6,7 +6,7 @@ import { startRest, stopRest } from './timer.js';
 import { weeklyBars, lineChart } from './charts.js';
 import { exerciseAnimation, exerciseArt, muscleDiagram } from './art.js';
 import {
-  CARDIO_GOAL, CARDIO_NOTES, CARDIO_TYPES, CHECK_FIRST, CUSTOM_KINDS, EFFORTS, WEIGHT_STEPS, EXERCISES, FOLLOW_UP, FOOD_NOTES, GYM_NOTES, GYM_PER_WEEK, HEART_RATE, MOVES,
+  ALL_FAMILIES, CARDIO_GOAL, CARDIO_NOTES, CARDIO_TYPES, CHECK_FIRST, CUSTOM_KINDS, EFFORTS, WEIGHT_STEPS, EXERCISES, FOLLOW_UP, FOOD_NOTES, GYM_NOTES, GYM_PER_WEEK, HEART_RATE, MOVES,
   MAX_SETS, PHASES, ROUTINES, SAFETY, SCHEDULE, SCHEDULE_ORDER, WEEKS, alternatesOf, cardioName, customMove, lookupMove, phaseOf, target,
 } from './plan.js';
 import {
@@ -226,7 +226,7 @@ function setRow(day, ex, i, last, rows, afterChange, suggestion) {
   return { row, weight, value, isDone: () => done, write };
 }
 
-const setText = (ex, s) => (ex.weighted ? `${s.weight} lb × ${s.value}` : `${s.value} ${ex.unit}`);
+const setText = (ex, s) => (ex.weighted ? `${s.weight} lb${ex.assisted ? ' assist' : ''} × ${s.value}` : `${s.value} ${ex.unit}`);
 const findMove = id => lookupMove(S.settings.custom, id);
 const allMoves = () => [...MOVES, ...S.settings.custom.map(customMove)];
 const routineIds = () => S.settings.routine ?? EXERCISES.map(e => e.id);
@@ -297,8 +297,34 @@ function exerciseCard(day, slot, afterChange) {
     redraw();
   }
 
-  function swapTo(move) {
+  let swapScope = 'today';
+  function swapTo(move, scope = swapScope) {
     if (rows.some(r => r.isDone())) { toast('Untick the sets on this exercise before swapping.'); return; }
+    if (scope === 'always' && inRoutine) {
+      const before = { routine: S.settings.routine, gym: structuredClone(day.gym ?? null) };
+      day.gym ||= {};
+      if (move.id !== ex.id) {
+        if (day.gym.sets) delete day.gym.sets[ex.id];
+        if (day.gym.counts) delete day.gym.counts[ex.id];
+        if (day.gym.effort) delete day.gym.effort[ex.id];
+      }
+      if (day.gym.swaps) delete day.gym.swaps[slot.id];
+      S.settings.routine = [...new Set(routineIds().map(id => (id === slot.id ? move.id : id)))];
+      saveSettings();
+      saveDay(day);
+      render();
+      toast(`${move.name} set for every workout.`, {
+        label: 'Undo', run: () => {
+          S.settings.routine = before.routine;
+          saveSettings();
+          if (before.gym) day.gym = before.gym;
+          else delete day.gym;
+          saveDay(day);
+          render();
+        }
+      });
+      return;
+    }
     day.gym ||= {};
     day.gym.swaps ||= {};
     if (day.gym.sets) delete day.gym.sets[ex.id];
@@ -353,13 +379,34 @@ function exerciseCard(day, slot, afterChange) {
 
   const taken = daySlots(day).map(s => activeMove(day, s).id);
   const choices = alternatesOf(slot).length ? [slot, ...alternatesOf(slot)].filter(m => m.id !== ex.id && !taken.includes(m.id)) : [];
+  const todayBtn = inRoutine ? h('button', {
+    class: 'chip-btn', type: 'button', 'aria-pressed': 'true', onclick: () => {
+      swapScope = 'today';
+      todayBtn.setAttribute('aria-pressed', 'true');
+      alwaysBtn.setAttribute('aria-pressed', 'false');
+    }
+  }, 'Today only') : null;
+  const alwaysBtn = inRoutine ? h('button', {
+    class: 'chip-btn', type: 'button', 'aria-pressed': 'false', onclick: () => {
+      swapScope = 'always';
+      todayBtn.setAttribute('aria-pressed', 'false');
+      alwaysBtn.setAttribute('aria-pressed', 'true');
+    }
+  }, 'Every workout') : null;
   const swapList = choices.length ? h('div', { class: 'swap-list', hidden: true },
+    h('div', { class: 'swap-head' },
+      h('span', { class: 'small-text muted' }, slot.family || 'Swap options'),
+      inRoutine && h('div', { class: 'swap-scope', role: 'group', 'aria-label': 'Swap scope' }, todayBtn, alwaysBtn)),
+    swapped && inRoutine && h('button', { class: 'ghost swap-promote', type: 'button', onclick: () => swapTo(ex, 'always') }, `Use ${ex.name} every workout`),
     choices.map(m => h('button', { class: 'swap-option', type: 'button', onclick: () => swapTo(m) },
       exerciseArt(m.id, { thumb: true }),
       h('span', { class: 'swap-text' },
-        h('strong', {}, m.id === slot.id ? `${m.name} (planned)` : m.name),
+        h('span', { class: 'swap-title-row' },
+          h('strong', {}, m.id === slot.id ? `${m.name} (planned)` : m.name),
+          m.fallback && h('span', { class: 'swap-badge' }, m.fallback)),
+        (m.unit !== slot.unit || m.low !== slot.low || m.high !== slot.high) && h('span', { class: 'muted small-text' }, target(m)),
         m.how && h('span', { class: 'muted small-text' }, m.how))))) : null;
-  const swapButton = choices.length ? h('button', { class: 'link swap-btn', type: 'button', 'aria-label': `Swap ${ex.name}`, onclick: () => { swapList.hidden = !swapList.hidden; } }, swapped ? 'Change' : 'Machine taken? Swap') : null;
+  const swapButton = choices.length ? h('button', { class: 'link swap-btn', type: 'button', 'aria-label': `Swap ${ex.name}`, onclick: () => { swapList.hidden = !swapList.hidden; } }, swapped ? 'Change' : (slot.id === 'plank' ? 'Swap exercise' : 'Machine taken? Swap')) : null;
 
   const thumb = exerciseArt(ex.id, { thumb: true, kind: ex.kind });
   const demo = thumb && !ex.custom ? exerciseAnimation(ex.id, { name: ex.name, kind: ex.kind }) : null;
@@ -375,6 +422,10 @@ function exerciseCard(day, slot, afterChange) {
     }
   }, thumb, artHint) : (thumb ? h('div', { class: 'art-thumb art-placeholder' }, thumb, h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'Custom')) : null);
 
+  const focusText = swapped
+    ? (ex.family ? `Instead of ${slot.name} · ${ex.family}` : `Instead of ${slot.name}`)
+    : (ex.family ? `${ex.family} · ${ex.focus}` : ex.focus);
+
   const card = h('article', { class: 'exercise', 'data-exercise': slot.id },
     h('div', { class: 'ex-head' },
       artButton,
@@ -382,7 +433,7 @@ function exerciseCard(day, slot, afterChange) {
         h('h3', {}, ex.name),
         h('p', { class: 'muted small-text focus-line' },
           muscleDiagram(ex.focus),
-          h('span', {}, swapped ? `Instead of ${slot.name}` : ex.focus))),
+          h('span', {}, focusText))),
       h('span', { class: 'target' }, target(ex))),
     artView,
     ex.how && h('p', { class: 'muted small-text' }, ex.how),
@@ -392,9 +443,13 @@ function exerciseCard(day, slot, afterChange) {
     last && h('p', { class: 'muted small-text last-time' }, `Last, ${shortDate(last.date)}: ${last.sets.map(s => setText(ex, s)).join(', ')}`),
     suggestion && h('p', { class: 'hint', 'data-testid': 'suggestion', 'data-action': suggestion.action }, `Suggested: ${suggestion.text}`),
     !suggestion && readyToIncrease(last, ex) && (() => {
-      const nextW = last.sets[last.sets.length - 1].weight + S.settings.step;
+      const lastW = last.sets[last.sets.length - 1].weight;
+      const nextW = ex.assisted ? Math.max(S.settings.step, lastW - S.settings.step) : lastW + S.settings.step;
+      if (nextW === lastW) return null;
       return h('div', { class: 'hint hint-row' },
-        h('span', {}, 'You reached the top of the range. If every rep felt controlled, try a small increase.'),
+        h('span', {}, ex.assisted
+          ? 'You reached the top of the range. If every rep felt controlled, try a little less assistance.'
+          : 'You reached the top of the range. If every rep felt controlled, try a small increase.'),
         h('button', {
           class: 'chip-btn', type: 'button', onclick: () => {
             rows.filter(r => !r.isDone()).forEach(r => {
@@ -408,7 +463,7 @@ function exerciseCard(day, slot, afterChange) {
         }, `Try ${nextW} lb`));
     })(),
     h('div', { class: 'set head muted small-text', 'aria-hidden': 'true' },
-      h('span', {}, 'Set'), h('span', {}, ex.weighted ? 'lb' : ex.unit === 'sec' ? 'timer' : ''), h('span', {}, ex.unit), h('span', {})),
+      h('span', {}, 'Set'), h('span', {}, ex.weighted ? (ex.assisted ? 'assist lb' : 'lb') : ex.unit === 'sec' ? 'timer' : ''), h('span', {}, ex.unit), h('span', {})),
     rows.map(r => r.row),
     h('div', { class: 'set-actions' },
       h('button', { class: 'ghost', type: 'button', 'aria-label': `Add set to ${ex.name}`, disabled: count >= MAX_SETS, onclick: addSet }, '+ Add set'),
@@ -452,7 +507,8 @@ function addExercisePanel(day) {
   const available = allMoves().filter(m => !used.has(m.id));
   const group = (label, moves) => moves.length > 0 && h('optgroup', { label }, moves.map(m => h('option', { value: m.id }, m.name)));
   const picker = h('select', { 'aria-label': 'Exercise to add' },
-    group('From the plan', available.filter(m => !m.slot && !m.custom)),
+    group('From the plan', available.filter(m => !m.slot && !m.optionalFamily && !m.custom)),
+    group('Optional families', available.filter(m => !m.slot && m.optionalFamily)),
     group('Alternates', available.filter(m => m.slot)),
     group('Your exercises', available.filter(m => m.custom)));
   const scope = select('Add to', 'always', [['always', 'Every workout'], ['today', 'Today only']], () => { });
@@ -768,8 +824,12 @@ function planView() {
       h('table', {}, h('tbody', {}, EXERCISES.map(e => h('tr', {}, h('th', { scope: 'row' }, e.name), h('td', { class: 'muted' }, h('span', { class: 'focus-line' }, muscleDiagram(e.focus), h('span', {}, e.focus))), h('td', { class: 'r' }, target(e)))))),
       h('h3', { class: 'sub' }, 'Each gym visit'), list(GYM_NOTES)),
     h('section', { class: 'card', id: 'plan-swap' }, h('h2', {}, 'If a machine is taken'),
-      h('p', { class: 'muted' }, 'Tap Swap on an exercise during your workout. Each alternate keeps its own weight history.'),
-      EXERCISES.filter(e => alternatesOf(e).length).map(e => [h('h3', { class: 'sub' }, e.name), list(alternatesOf(e).map(a => `${a.name}: ${a.how}`))])),
+      h('p', { class: 'muted' }, 'Tap Swap on an exercise during your workout to pick another movement in the same family. Each alternate keeps its own weight history.'),
+      ALL_FAMILIES.filter(e => alternatesOf(e).length).map(e => [
+        h('h3', { class: 'sub' }, e.name),
+        e.family && h('p', { class: 'muted small-text' }, e.family),
+        list(alternatesOf(e).map(a => `${a.name}${a.fallback ? ` (${a.fallback})` : ''}: ${a.how}`)),
+      ])),
     h('section', { class: 'card', id: 'plan-warm' }, h('h2', {}, 'Warm-up and stretching'),
       [['gym-pre', 'Gym warm-up'], ['gym-post', 'Gym cool-down and stretch'], ['cardio-pre', 'Cardio warm-up'], ['cardio-post', 'Cardio cool-down and stretch']].map(([key, name]) => [
         h('h3', { class: 'sub' }, name), list(ROUTINES[key].steps.map(s => `${s.text}: ${s.detail}`)),

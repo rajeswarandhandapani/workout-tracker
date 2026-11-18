@@ -1,6 +1,6 @@
 // Dates, totals and backup checks. No page access here, so all of it can be unit tested.
 
-import { CARDIO_GOAL, CARDIO_TYPES, CUSTOM_KINDS, EFFORTS, MAX_SETS, SCHEDULE, STEP_IDS, WEEKS, WEIGHT_STEPS, lookupMove, moveById } from './plan.js';
+import { CARDIO_GOAL, CARDIO_TYPES, CUSTOM_KINDS, EFFORTS, MAX_SETS, SCHEDULE, STEP_IDS, WEEKS, WEIGHT_STEPS, lookupMove, sameFamily } from './plan.js';
 
 const pad = n => String(n).padStart(2, '0');
 export const toIso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -115,14 +115,22 @@ export function suggestNext(ex, last, { week = 99, step = 5 } = {}) {
   const weight = sets[sets.length - 1].weight;
   if (weight == null || weight <= 0) return null;
   const lighter = Math.max(step, Math.floor((weight * 0.9) / step) * step);
+  const harder = Math.max(step, weight - step);
+  const easier = Math.max(weight + step, Math.ceil((weight * 1.1) / step) * step);
   const hold = (value, text) => ({ action: 'hold', weight, value, text });
-  const drop = text => (lighter < weight
-    ? { action: 'decrease', weight: lighter, value: ex.low, text }
-    : hold(ex.low, `Stay at ${weight} lb and keep every rep controlled.`));
-  const raise = () => ({ action: 'increase', weight: weight + step, value: ex.low, text: `Try ${weight + step} lb for ${ex.low} reps if every rep feels controlled.` });
+  const drop = text => (ex.assisted
+    ? { action: 'decrease', weight: easier, value: ex.low, text }
+    : lighter < weight
+      ? { action: 'decrease', weight: lighter, value: ex.low, text }
+      : hold(ex.low, `Stay at ${weight} lb and keep every rep controlled.`));
+  const raise = () => (ex.assisted
+    ? (harder < weight
+      ? { action: 'increase', weight: harder, value: ex.low, text: `Try ${harder} lb assistance for ${ex.low} reps if every rep feels controlled.` }
+      : hold(ex.high, `Stay at ${weight} lb and keep every rep controlled.`))
+    : { action: 'increase', weight: weight + step, value: ex.low, text: `Try ${weight + step} lb for ${ex.low} reps if every rep feels controlled.` });
 
-  if (effort === 'max') return drop(`Drop to ${lighter} lb and keep every rep controlled.`);
-  if (effort === 'hard') return lowest < ex.low ? drop(`Drop to ${lighter} lb so you can reach ${ex.low} reps.`) : hold(lowest, `Stay at ${weight} lb until it feels steadier.`);
+  if (effort === 'max') return drop(ex.assisted ? `Increase assistance to ${easier} lb and keep every rep controlled.` : `Drop to ${lighter} lb and keep every rep controlled.`);
+  if (effort === 'hard') return lowest < ex.low ? drop(ex.assisted ? `Increase assistance to ${easier} lb so you can reach ${ex.low} reps.` : `Drop to ${lighter} lb so you can reach ${ex.low} reps.`) : hold(lowest, `Stay at ${weight} lb until it feels steadier.`);
   if (atTop) {
     // Being able to do far more means the weight is too light, even while learning the movement.
     if (effort === 'good' && week < 3) return hold(ex.high, `Weeks 1–2 are for technique, so stay at ${weight} lb.`);
@@ -143,7 +151,7 @@ export function setCountFor(day, ex, last) {
 /** True when every set reached the top of the range last time. Plank is timed, so it never asks. */
 export const readyToIncrease = (last, ex) => Boolean(ex.weighted && last
   && last.sets.length >= ex.sets
-  && last.sets[last.sets.length - 1].weight > 0
+  && last.sets[last.sets.length - 1].weight > (ex.assisted ? 5 : 0)
   && last.sets.every(s => s.value >= ex.high));
 
 export function lastCardio(days, before) {
@@ -258,7 +266,7 @@ function cleanDay(raw, known) {
       const ids = Array.isArray(raw.gym[key]) ? raw.gym[key].filter(id => typeof id === 'string' && known(id)) : [];
       if (ids.length) day.gym[key] = ids;
     }
-    const swaps = Object.fromEntries(Object.entries(raw.gym.swaps || {}).filter(([slot, move]) => moveById(move)?.slot === slot));
+    const swaps = Object.fromEntries(Object.entries(raw.gym.swaps || {}).filter(([slot, move]) => sameFamily(slot, move)));
     if (Object.keys(swaps).length) day.gym.swaps = swaps;
   }
   if (raw.steps && typeof raw.steps === 'object') {

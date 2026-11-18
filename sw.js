@@ -1,7 +1,7 @@
 // Saves the app's own files for offline use, which matters in a gym with poor signal.
 // Workout logs are never in here: they live in IndexedDB.
 // Uses stale-while-revalidate so cached screens load instantly and updates fetch in the background.
-const CACHE = 'workout-tracker-v7';
+const CACHE = 'workout-tracker-v8';
 const FILES = [
   './',
   './index.html',

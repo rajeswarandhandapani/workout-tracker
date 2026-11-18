@@ -4,7 +4,7 @@ import {
   DEFAULT_REMINDER, addDays, cleanSettings, exerciseHistory, isEmptyDay, lastCardio, lastPerformance, makeBackup, makeCalendar, mondayOf, moderateMinutes, nextMonday, parseBackup,
   programRows, programTotals, programWeek, readyToIncrease, reminderDue, reminderFor, setCountFor, setsDone, statusOf, weekSummary, dayExerciseIds, suggestNext,
 } from '../js/logic.js';
-import { lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, moveById, target } from '../js/plan.js';
+import { ALL_FAMILIES, EXTRA_FAMILIES, lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, moveById, sameFamily, target } from '../js/plan.js';
 
 const LEG = EXERCISES.find(e => e.id === 'leg-press');
 const PLANK = EXERCISES.find(e => e.id === 'plank');
@@ -19,19 +19,53 @@ test('the plan has twelve sets of six exercises', () => {
   assert.equal(target(PLANK), '2 × 20–40 sec');
 });
 
-test('alternates keep the sets and targets of the exercise they replace', () => {
+test('alternates keep the family and valid targets of the exercise they replace', () => {
   assert.equal(new Set(MOVES.map(m => m.id)).size, MOVES.length, 'ids are unique');
-  for (const ex of EXERCISES.filter(e => e.id !== 'plank')) {
-    assert.ok(alternatesOf(ex).length >= 3, `${ex.name} has alternates`);
+  assert.equal(EXTRA_FAMILIES.length, 3);
+  for (const ex of ALL_FAMILIES) {
+    assert.ok(ex.family, `${ex.name} has a family`);
+    assert.ok(alternatesOf(ex).length >= 2, `${ex.name} has alternates`);
     for (const alt of alternatesOf(ex)) {
-      assert.equal(target(alt), target(ex));
+      if (ex.id === 'plank') {
+        assert.ok(['sec', 'reps'].includes(alt.unit));
+        assert.equal(alt.sets, ex.sets);
+        assert.ok(alt.low > 0 && alt.high >= alt.low);
+        assert.equal(alt.weighted, false);
+      } else {
+        assert.equal(target(alt), target(ex));
+      }
       assert.equal(alt.focus, ex.focus);
+      assert.equal(alt.family, ex.family);
       assert.ok(alt.how, `${alt.name} says how to do it`);
     }
   }
   assert.equal(moveById('goblet-squat').weighted, true);
   assert.equal(moveById('incline-pushup').weighted, false);
-  assert.equal(alternatesOf(PLANK).length, 0, 'a plank needs no machine');
+  assert.equal(moveById('dead-bug').unit, 'reps');
+  assert.equal(moveById('assisted-pullup').assisted, true);
+  assert.ok(alternatesOf(PLANK).length >= 5, 'plank has core stability alternates');
+});
+
+test('sameFamily allows swapping between any two exercises in a family', () => {
+  assert.equal(sameFamily('leg-press', 'goblet-squat'), true);
+  assert.equal(sameFamily('goblet-squat', 'smith-squat'), true);
+  assert.equal(sameFamily('leg-press', 'leg-press'), false);
+  assert.equal(sameFamily('leg-press', 'db-row'), false);
+  const file = JSON.stringify({
+    app: 'workout-tracker',
+    days: [{ date: '2026-11-09', gym: { swaps: { 'goblet-squat': 'smith-squat', 'leg-press': 'db-row' } } }],
+  });
+  assert.deepEqual(parseBackup(file).days[0].gym.swaps, { 'goblet-squat': 'smith-squat' });
+});
+
+test('assisted pull-up reduces assistance weight to progress and adds assistance to ease off', () => {
+  const ASSISTED = moveById('assisted-pullup');
+  const up = suggestNext(ASSISTED, { effort: 'good', sets: [set(60, 12), set(60, 12)] }, { week: 5, step: 5 });
+  assert.deepEqual([up.action, up.weight, up.value], ['increase', 55, 10]);
+  const down = suggestNext(ASSISTED, { effort: 'max', sets: [set(60, 12), set(60, 12)] }, { week: 5, step: 5 });
+  assert.deepEqual([down.action, down.weight, down.value], ['decrease', 70, 10]);
+  assert.equal(readyToIncrease({ sets: [set(60, 12), set(60, 12)] }, ASSISTED), true);
+  assert.equal(readyToIncrease({ sets: [set(5, 12), set(5, 12)] }, ASSISTED), false);
 });
 
 test('every routine starts or ends the Watch once, and step ids are unique', () => {

@@ -130,6 +130,16 @@ async function noOverflow(page, label) {
   await page.locator('#rest').waitFor({ state: 'hidden' });
   assert.ok(await exercise(page, 'leg-press').evaluate(e => e.classList.contains('complete')));
 
+  // Plank can swap within Core stability (including rep-based moves like Dead bug) and swap back.
+  await exercise(page, 'plank').getByRole('button', { name: 'Swap Plank' }).click();
+  await exercise(page, 'plank').getByRole('button', { name: /Dead bug/ }).click();
+  assert.equal(await exercise(page, 'plank').locator('h3').textContent(), 'Dead bug');
+  assert.equal(await exercise(page, 'plank').locator('.target').textContent(), '2 × 8–10');
+  assert.equal(await exercise(page, 'plank').locator('.set-timer').count(), 0, 'rep-based swap has no hold timer');
+  await exercise(page, 'plank').getByRole('button', { name: 'Swap Dead bug' }).click();
+  await exercise(page, 'plank').getByRole('button', { name: /Plank \(planned\)/ }).click();
+  assert.equal(await exercise(page, 'plank').locator('h3').textContent(), 'Plank');
+
   // Plank has no weight, is saved in seconds, and offers an inline hold timer.
   await exercise(page, 'plank').getByRole('button', { name: 'Start timer for Plank set 1' }).click();
   await page.locator('#rest').waitFor();
@@ -141,7 +151,6 @@ async function noOverflow(page, label) {
   assert.equal(await testId(page, 'set-count').textContent(), '3 of 12 sets');
 
   // Machine taken: swap to an alternate, which starts with an empty weight.
-  assert.equal(await exercise(page, 'plank').getByRole('button', { name: /^Swap/ }).count(), 0, 'plank needs no machine');
   await exercise(page, 'seated-row').getByRole('button', { name: 'Swap Seated row' }).click();
   await exercise(page, 'seated-row').getByRole('button', { name: /Single-arm dumbbell row/ }).click();
   assert.equal(await exercise(page, 'seated-row').locator('h3').textContent(), 'Single-arm dumbbell row');
@@ -165,6 +174,15 @@ async function noOverflow(page, label) {
   await exercise(page, 'lat-pulldown').getByRole('button', { name: 'Swap Band pulldown' }).click();
   await exercise(page, 'lat-pulldown').getByRole('button', { name: /Lat pulldown \(planned\)/ }).click();
   assert.equal(await exercise(page, 'lat-pulldown').locator('h3').textContent(), 'Lat pulldown');
+
+  // Swapping with "Every workout" updates the default slot and supports Undo.
+  await exercise(page, 'chest-press').getByRole('button', { name: 'Swap Chest press machine' }).click();
+  await exercise(page, 'chest-press').getByRole('button', { name: 'Every workout' }).click();
+  await exercise(page, 'chest-press').getByRole('button', { name: /Dumbbell bench press/ }).click();
+  assert.equal(await exercise(page, 'db-bench').locator('h3').textContent(), 'Dumbbell bench press');
+  await page.locator('#toast', { hasText: 'set for every workout' }).waitFor();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  assert.equal(await exercise(page, 'chest-press').locator('h3').textContent(), 'Chest press machine');
 
   // A third set: added, carrying the weight down, and counted.
   const setRows = id => exercise(page, id).locator('.set:not(.head)');
@@ -382,6 +400,7 @@ async function noOverflow(page, label) {
   assert.ok(!planText.includes('[object'), 'the Plan page shows real content');
   assert.ok(await page.getByRole('heading', { name: 'Leg press', level: 3 }).isVisible());
   assert.ok(await page.getByText('Goblet squat: Hold one dumbbell').isVisible());
+  assert.ok(await page.getByRole('heading', { name: 'Shoulder press machine', level: 3 }).isVisible());
   assert.ok(await page.getByRole('heading', { name: 'Gym cool-down and stretch' }).isVisible());
   assert.ok(await page.getByText('Standing quad stretch: 30 sec each leg').first().isVisible());
 
@@ -449,7 +468,7 @@ async function noOverflow(page, label) {
 
   // Works with no network once the service worker has the files.
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v7'));
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null || caches.has('workout-tracker-v8'));
   await page.reload();
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
