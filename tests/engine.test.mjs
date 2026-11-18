@@ -140,6 +140,9 @@ test('weekly and program totals', () => {
   assert.equal(rows.length, 12);
   assert.equal(rows[1].monday, '2026-11-16');
   assert.deepEqual(programTotals(rows), { gym: 1, cardio: 180, goalWeeks: 1 });
+  const extended = programRows({ ...days, '2027-02-08': { cardio: [{ type: 'walk', minutes: 45 }] } }, '2026-11-11');
+  assert.equal(extended.length, 14);
+  assert.equal(extended[13].cardio, 45);
 });
 
 test('the last session is the newest earlier one with a ticked set', () => {
@@ -160,6 +163,7 @@ test('a weight increase is only suggested at the top of the range', () => {
   assert.equal(readyToIncrease({ sets: [set(60, 12), set(60, 11)] }, LEG), false);
   assert.equal(readyToIncrease({ sets: [set(60, 12)] }, LEG), false);
   assert.equal(readyToIncrease(null, LEG), false);
+  assert.equal(readyToIncrease({ sets: [set(0, 12), set(0, 12)] }, LEG), false);
   assert.equal(readyToIncrease({ sets: [set(null, 40), set(null, 40)] }, PLANK), false);
 });
 
@@ -259,6 +263,7 @@ test('no suggestion without a rating or a last session', () => {
   assert.equal(suggestNext(LEG, { sets: [set(60, 12)] }, LATER), null);
   assert.equal(suggestNext(LEG, { effort: 'good', sets: [] }, LATER), null);
   assert.equal(suggestNext(LEG, rated('good', [null, 12]), LATER), null);
+  assert.equal(suggestNext(LEG, rated('good', [0, 12]), LATER), null);
 });
 
 test('weight only goes up from the top of the range', () => {

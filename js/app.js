@@ -181,8 +181,8 @@ function setRow(day, ex, i, last, rows, afterChange, suggestion) {
 
   function toggle() {
     if (!done) {
-      if (ex.weighted && num(weight.value) == null) { need(weight, 'Enter the weight first.'); return; }
-      if (num(value.value) == null) { need(value, `Enter the ${ex.unit === 'sec' ? 'seconds' : 'reps'} first.`); return; }
+      if (ex.weighted && !(num(weight.value) > 0)) { need(weight, 'Enter the weight first.'); return; }
+      if (!(num(value.value) > 0)) { need(value, `Enter the ${ex.unit === 'sec' ? 'seconds' : 'reps'} first.`); return; }
     }
     done = !done;
     row.classList.toggle('done', done);
@@ -285,6 +285,7 @@ function exerciseCard(day, slot, afterChange) {
 
   function removeSet() {
     if (rows[count - 1].isDone()) { toast('Untick the last set before removing it.'); return; }
+    rows.slice(0, count - 1).forEach(r => r.write());
     day.gym ||= {};
     day.gym.counts ||= {};
     day.gym.counts[ex.id] = count - 1;
@@ -678,10 +679,16 @@ function exerciseProgress() {
   const describe = p => p.sets.map(s => setText(ex, s)).join(', ');
   const options = new Map([...routineIds().map(findMove).filter(Boolean), ex, ...allMoves().filter(m => exerciseHistory(S.days, m).length)].map(m => [m.id, m]));
   const title = ex.weighted ? 'Heaviest set' : ex.unit === 'sec' ? 'Longest hold' : 'Most reps';
-  return h('section', { class: 'card' },
+  const picker = select('Exercise', ex.id, [...options.values()].map(e => [e.id, e.name]), v => {
+    S.exercise = v;
+    const next = exerciseProgress();
+    card.replaceWith(next);
+    next.querySelector('select')?.focus();
+  });
+  const card = h('section', { class: 'card' },
     h('div', { class: 'row between chart-head' },
       h('h2', {}, title),
-      select('Exercise', ex.id, [...options.values()].map(e => [e.id, e.name]), v => { S.exercise = v; render(); })),
+      picker),
     points.length
       ? [
         h('div', { class: 'chart' }, lineChart({ points, unit, describe })),
@@ -691,18 +698,20 @@ function exerciseProgress() {
             h('tbody', {}, [...points].reverse().map(p => h('tr', {}, h('td', {}, shortDate(p.date)), h('td', {}, describe(p))))))),
       ]
       : h('p', { class: 'muted' }, `Finish a set of ${ex.name.toLowerCase()} to see it here.`));
+  return card;
 }
 
 function progressView() {
   if (!S.settings.startDate) return [h('h1', {}, 'Progress'), h('section', { class: 'card' }, h('p', {}, 'Choose a start date on the Today screen to begin.'))];
-  const rows = programRows(S.days, S.settings.startDate);
+  const count = Math.max(WEEKS, programWeek(S.today, S.settings.startDate));
+  const rows = programRows(S.days, S.settings.startDate, count);
   const totals = programTotals(rows);
   return [
     h('h1', {}, 'Progress'),
     h('div', { class: 'tiles' },
-      h('div', { class: 'tile' }, h('span', { class: 'muted' }, 'Gym visits'), h('b', { 'data-testid': 'total-gym' }, `${totals.gym} of ${WEEKS * GYM_PER_WEEK}`), meter(totals.gym, WEEKS * GYM_PER_WEEK)),
-      h('div', { class: 'tile' }, h('span', { class: 'muted' }, 'Cardio minutes'), h('b', { 'data-testid': 'total-cardio' }, totals.cardio), meter(totals.cardio, WEEKS * CARDIO_GOAL)),
-      h('div', { class: 'tile' }, h('span', { class: 'muted' }, `Weeks at ${CARDIO_GOAL}+ min`), h('b', {}, `${totals.goalWeeks} of ${WEEKS}`), meter(totals.goalWeeks, WEEKS))),
+      h('div', { class: 'tile' }, h('span', { class: 'muted' }, 'Gym visits'), h('b', { 'data-testid': 'total-gym' }, `${totals.gym} of ${rows.length * GYM_PER_WEEK}`), meter(totals.gym, rows.length * GYM_PER_WEEK)),
+      h('div', { class: 'tile' }, h('span', { class: 'muted' }, 'Cardio minutes'), h('b', { 'data-testid': 'total-cardio' }, totals.cardio), meter(totals.cardio, rows.length * CARDIO_GOAL)),
+      h('div', { class: 'tile' }, h('span', { class: 'muted' }, `Weeks at ${CARDIO_GOAL}+ min`), h('b', {}, `${totals.goalWeeks} of ${rows.length}`), meter(totals.goalWeeks, rows.length))),
     calendar(rows),
     weeklyCard(rows),
     exerciseProgress(),

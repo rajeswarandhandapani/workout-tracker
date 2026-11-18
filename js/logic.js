@@ -66,7 +66,9 @@ export function weekSummary(days, monday) {
 
 export function programRows(days, start, count = WEEKS) {
   const first = mondayOf(start);
-  return Array.from({ length: count }, (_, i) => {
+  const latest = Object.keys(days).filter(d => !isEmptyDay(days[d])).sort().pop();
+  const total = Math.max(count, latest ? programWeek(latest, start) : 0);
+  return Array.from({ length: total }, (_, i) => {
     const monday = addDays(first, i * 7);
     return { week: i + 1, monday, ...weekSummary(days, monday) };
   });
@@ -111,7 +113,7 @@ export function suggestNext(ex, last, { week = 99, step = 5 } = {}) {
   }
 
   const weight = sets[sets.length - 1].weight;
-  if (weight == null) return null;
+  if (weight == null || weight <= 0) return null;
   const lighter = Math.max(step, Math.floor((weight * 0.9) / step) * step);
   const hold = (value, text) => ({ action: 'hold', weight, value, text });
   const drop = text => (lighter < weight
@@ -140,7 +142,9 @@ export function setCountFor(day, ex, last) {
 
 /** True when every set reached the top of the range last time. Plank is timed, so it never asks. */
 export const readyToIncrease = (last, ex) => Boolean(ex.weighted && last
-  && last.sets.length >= ex.sets && last.sets.every(s => s.value >= ex.high));
+  && last.sets.length >= ex.sets
+  && last.sets[last.sets.length - 1].weight > 0
+  && last.sets.every(s => s.value >= ex.high));
 
 export function lastCardio(days, before) {
   const dates = Object.keys(days).filter(d => d < before).sort().reverse();
