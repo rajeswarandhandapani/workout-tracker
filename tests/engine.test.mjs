@@ -4,7 +4,7 @@ import {
   DEFAULT_REMINDER, addDays, cleanSettings, exerciseHistory, isEmptyDay, lastCardio, lastPerformance, makeBackup, makeCalendar, mondayOf, moderateMinutes, nextMonday, parseBackup,
   programRows, programTotals, programWeek, readyToIncrease, reminderDue, reminderFor, setCountFor, setsDone, statusOf, weekSummary, dayExerciseIds, suggestNext,
 } from '../js/logic.js';
-import { ALL_FAMILIES, EXTRA_FAMILIES, lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, moveById, sameFamily, target } from '../js/plan.js';
+import { ALL_FAMILIES, EXTRA_FAMILIES, lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, gifUrl, moveById, sameFamily, target, videoUrl } from '../js/plan.js';
 
 const LEG = EXERCISES.find(e => e.id === 'leg-press');
 const PLANK = EXERCISES.find(e => e.id === 'plank');
@@ -66,6 +66,12 @@ test('assisted pull-up reduces assistance weight to progress and adds assistance
   assert.deepEqual([down.action, down.weight, down.value], ['decrease', 70, 10]);
   assert.equal(readyToIncrease({ sets: [set(60, 12), set(60, 12)] }, ASSISTED), true);
   assert.equal(readyToIncrease({ sets: [set(5, 12), set(5, 12)] }, ASSISTED), false);
+});
+
+test('external video and animated GIF helper URLs encode exercise names cleanly', () => {
+  assert.match(videoUrl(LEG), /^https:\/\/www\.youtube\.com\/results\?search_query=Leg%20press%20/);
+  assert.match(gifUrl(LEG), /^https:\/\/www\.google\.com\/search\?tbm=isch&tbs=itp:animated&q=Leg%20press%20/);
+  assert.match(videoUrl('Cable crunch'), /Cable%20crunch/);
 });
 
 test('every routine starts or ends the Watch once, and step ids are unique', () => {

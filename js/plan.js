@@ -135,6 +135,14 @@ export const WEIGHT_STEPS = [2.5, 5, 10, 15];
 export const TOTAL_SETS = EXERCISES.reduce((n, e) => n + e.sets, 0);
 export const MAX_SETS = 6;
 export const target = ex => `${ex.sets} × ${ex.low === ex.high ? ex.low : `${ex.low}–${ex.high}`}${ex.unit === 'sec' ? ' sec' : ''}`;
+export const videoUrl = item => {
+  const name = typeof item === 'string' ? item : item?.video || item?.name || item?.text || '';
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} exercise proper form how to`)}`;
+};
+export const gifUrl = item => {
+  const name = typeof item === 'string' ? item : item?.video || item?.name || item?.text || '';
+  return `https://www.google.com/search?tbm=isch&tbs=itp:animated&q=${encodeURIComponent(`${name} exercise form gif`)}`;
+};
 
 // "gentle" is logged but left out of the 150 minutes, which are for moderate cardio.
 export const CARDIO_TYPES = [

@@ -7,7 +7,7 @@ import { weeklyBars, lineChart } from './charts.js';
 import { exerciseAnimation, exerciseArt, muscleDiagram } from './art.js';
 import {
   ALL_FAMILIES, CARDIO_GOAL, CARDIO_NOTES, CARDIO_TYPES, CHECK_FIRST, CUSTOM_KINDS, EFFORTS, WEIGHT_STEPS, EXERCISES, FOLLOW_UP, FOOD_NOTES, GYM_NOTES, GYM_PER_WEEK, HEART_RATE, MOVES,
-  MAX_SETS, PHASES, ROUTINES, SAFETY, SCHEDULE, SCHEDULE_ORDER, WEEKS, alternatesOf, cardioName, customMove, lookupMove, phaseOf, target,
+  MAX_SETS, PHASES, ROUTINES, SAFETY, SCHEDULE, SCHEDULE_ORDER, WEEKS, alternatesOf, cardioName, customMove, gifUrl, lookupMove, phaseOf, target, videoUrl,
 } from './plan.js';
 import {
   DEFAULT_REMINDER, addDays, cardioOf, cleanSettings, dayExerciseIds, exerciseHistory, fromIso, isEmptyDay, lastCardio, lastPerformance, localToday, makeBackup, makeCalendar, mondayOf,
@@ -227,6 +227,16 @@ function setRow(day, ex, i, last, rows, afterChange, suggestion) {
 }
 
 const setText = (ex, s) => (ex.weighted ? `${s.weight} lb${ex.assisted ? ' assist' : ''} × ${s.value}` : `${s.value} ${ex.unit}`);
+const extLink = (href, text, label) => h('a', {
+  class: 'link ext-link',
+  href,
+  target: '_blank',
+  rel: 'noopener noreferrer',
+  'aria-label': label,
+}, text);
+const mediaLinks = (item, name) => h('div', { class: 'media-links' },
+  extLink(videoUrl(item), 'Watch form video ↗', `Watch ${name} video`),
+  extLink(gifUrl(item), 'Animated GIFs ↗', `View ${name} animated GIF`));
 const findMove = id => lookupMove(S.settings.custom, id);
 const allMoves = () => [...MOVES, ...S.settings.custom.map(customMove)];
 const routineIds = () => S.settings.routine ?? EXERCISES.map(e => e.id);
@@ -410,7 +420,7 @@ function exerciseCard(day, slot, afterChange) {
 
   const thumb = exerciseArt(ex.id, { thumb: true, kind: ex.kind });
   const demo = thumb && !ex.custom ? exerciseAnimation(ex.id, { name: ex.name, kind: ex.kind }) : null;
-  const artView = demo ? h('div', { hidden: true }, demo.el) : null;
+  const artView = demo ? h('div', { hidden: true }, demo.el, mediaLinks(ex, ex.name)) : null;
   const artHint = demo ? h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'How to') : null;
   const artButton = demo ? h('button', {
     class: 'art-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${ex.name}`, onclick: () => {
@@ -437,7 +447,11 @@ function exerciseCard(day, slot, afterChange) {
       h('span', { class: 'target' }, target(ex))),
     artView,
     ex.how && h('p', { class: 'muted small-text' }, ex.how),
-    h('div', { class: 'card-tools' }, swapButton, removeButton),
+    h('div', { class: 'card-tools' },
+      swapButton,
+      extLink(videoUrl(ex), 'Video ↗', `Watch ${ex.name} video`),
+      extLink(gifUrl(ex), 'GIF ↗', `View ${ex.name} animated GIF`),
+      removeButton),
     swapList,
     removeBox,
     last && h('p', { class: 'muted small-text last-time' }, `Last, ${shortDate(last.date)}: ${last.sets.map(s => setText(ex, s)).join(', ')}`),
@@ -576,7 +590,7 @@ function routineCard(day, key) {
       });
       const thumb = exerciseArt(step.id, { thumb: true });
       const demo = thumb ? exerciseAnimation(step.id, { name: step.text }) : null;
-      const artView = demo ? h('div', { class: 'step-art', hidden: true }, demo.el) : null;
+      const artView = demo ? h('div', { class: 'step-art', hidden: true }, demo.el, !step.watch && mediaLinks(step, step.text)) : null;
       const artHint = demo ? h('span', { class: 'art-hint', 'aria-hidden': 'true' }, 'How to') : null;
       const artBtn = demo ? h('button', {
         class: 'art-thumb step-thumb', type: 'button', 'aria-expanded': 'false', 'aria-label': `Show how to do ${step.text}`, onclick: () => {
@@ -821,14 +835,26 @@ function planView() {
     h('section', { class: 'card' }, h('h2', {}, 'Stages'),
       PHASES.map(p => h('div', { class: `phase${week >= p.from && week <= p.to ? ' current' : ''}` }, h('strong', {}, `Weeks ${p.from}–${p.to}`), h('span', {}, p.name)))),
     h('section', { class: 'card', id: 'plan-gym' }, h('h2', {}, 'Full-body gym workout'),
-      h('table', {}, h('tbody', {}, EXERCISES.map(e => h('tr', {}, h('th', { scope: 'row' }, e.name), h('td', { class: 'muted' }, h('span', { class: 'focus-line' }, muscleDiagram(e.focus), h('span', {}, e.focus))), h('td', { class: 'r' }, target(e)))))),
+      h('table', {}, h('tbody', {}, EXERCISES.map(e => h('tr', {},
+        h('th', { scope: 'row' }, e.name),
+        h('td', { class: 'muted' },
+          h('span', { class: 'focus-line' }, muscleDiagram(e.focus), h('span', {}, e.focus)),
+          h('div', { class: 'plan-links' },
+            extLink(videoUrl(e), 'Video ↗', `Watch ${e.name} video`),
+            extLink(gifUrl(e), 'GIF ↗', `View ${e.name} animated GIF`))),
+        h('td', { class: 'r' }, target(e)))))),
       h('h3', { class: 'sub' }, 'Each gym visit'), list(GYM_NOTES)),
     h('section', { class: 'card', id: 'plan-swap' }, h('h2', {}, 'If a machine is taken'),
       h('p', { class: 'muted' }, 'Tap Swap on an exercise during your workout to pick another movement in the same family. Each alternate keeps its own weight history.'),
       ALL_FAMILIES.filter(e => alternatesOf(e).length).map(e => [
         h('h3', { class: 'sub' }, e.name),
         e.family && h('p', { class: 'muted small-text' }, e.family),
-        list(alternatesOf(e).map(a => `${a.name}${a.fallback ? ` (${a.fallback})` : ''}: ${a.how}`)),
+        list(alternatesOf(e).map(a => [
+          `${a.name}${a.fallback ? ` (${a.fallback})` : ''}: ${a.how} `,
+          extLink(videoUrl(a), 'Video ↗', `Watch ${a.name} video`),
+          ' · ',
+          extLink(gifUrl(a), 'GIF ↗', `View ${a.name} animated GIF`),
+        ])),
       ])),
     h('section', { class: 'card', id: 'plan-warm' }, h('h2', {}, 'Warm-up and stretching'),
       [['gym-pre', 'Gym warm-up'], ['gym-post', 'Gym cool-down and stretch'], ['cardio-pre', 'Cardio warm-up'], ['cardio-post', 'Cardio cool-down and stretch']].map(([key, name]) => [

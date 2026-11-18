@@ -102,6 +102,16 @@ async function noOverflow(page, label) {
   assert.ok(await exercise(page, 'plank').getByRole('img', { name: 'Plank: position to hold' }).isVisible());
   await exercise(page, 'plank').getByRole('button', { name: 'Show how to do Plank' }).click();
 
+  // External video and animated GIF links are present without making background requests.
+  const legVideo = exercise(page, 'leg-press').getByRole('link', { name: 'Watch Leg press video' }).first();
+  const legGif = exercise(page, 'leg-press').getByRole('link', { name: 'View Leg press animated GIF' }).first();
+  assert.equal(await legVideo.getAttribute('target'), '_blank');
+  assert.equal(await legVideo.getAttribute('rel'), 'noopener noreferrer');
+  assert.match(await legVideo.getAttribute('href'), /^https:\/\/www\.youtube\.com\/results\?/);
+  assert.equal(await legGif.getAttribute('target'), '_blank');
+  assert.equal(await legGif.getAttribute('rel'), 'noopener noreferrer');
+  assert.match(await legGif.getAttribute('href'), /^https:\/\/www\.google\.com\/search\?tbm=isch&tbs=itp:animated/);
+
   // Monday: a set needs a weight, then the rest timer runs.
   await prevDay(page); await prevDay(page);
   await page.getByRole('heading', { name: 'Monday, November 9' }).waitFor();
