@@ -61,3 +61,15 @@ self.addEventListener('fetch', event => {
     }
   })());
 });
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (all.length > 0) {
+      await all[0].focus();
+      return;
+    }
+    await self.clients.openWindow('./index.html');
+  })());
+});

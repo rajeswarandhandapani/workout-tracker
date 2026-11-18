@@ -385,9 +385,24 @@ async function noOverflow(page, label) {
   assert.ok(await page.getByRole('heading', { name: 'Gym cool-down and stretch' }).isVisible());
   assert.ok(await page.getByText('Standing quad stretch: 30 sec each leg').first().isVisible());
 
-  // Backup, erase, restore.
+  // Reminders, backup, erase, restore.
   await nav(page, 'Data');
   await noOverflow(page, 'Data');
+  assert.equal(await page.getByLabel('Reminder time').inputValue(), '16:00');
+  await page.getByRole('checkbox', { name: 'Daily workout reminder' }).check();
+  await page.getByLabel('Reminder time').fill('16:30');
+  await page.getByRole('button', { name: 'Remind on Sunday' }).click();
+  assert.equal(await page.getByRole('button', { name: 'Remind on Sunday' }).getAttribute('aria-pressed'), 'true');
+  await page.getByRole('button', { name: 'Test reminder' }).click();
+  await page.locator('#toast', { hasText: 'Gym day: Full-body machine workout' }).waitFor();
+  const [icsDl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Add to calendar (.ics)' }).click()]);
+  assert.equal(icsDl.suggestedFilename(), 'workout-reminders.ics');
+  const icsPath = path.join(OUT, icsDl.suggestedFilename());
+  await icsDl.saveAs(icsPath);
+  const icsText = fs.readFileSync(icsPath, 'utf8');
+  assert.match(icsText, /DTSTART:20261109T163000/);
+  assert.match(icsText, /SUMMARY:Gym day: Full-body machine workout/);
+
   await page.getByRole('combobox', { name: 'Smallest weight jump' }).selectOption('10');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download backup' }).click()]);
   assert.equal(dl.suggestedFilename(), 'workout-tracker-2026-11-11.json');
@@ -414,6 +429,9 @@ async function noOverflow(page, label) {
 
   await nav(page, 'Data');
   assert.equal(await page.getByRole('combobox', { name: 'Smallest weight jump' }).inputValue(), '10', 'settings come back with a backup');
+  assert.equal(await page.getByRole('checkbox', { name: 'Daily workout reminder' }).isChecked(), true);
+  assert.equal(await page.getByLabel('Reminder time').inputValue(), '16:30');
+  assert.equal(await page.getByRole('button', { name: 'Remind on Sunday' }).getAttribute('aria-pressed'), 'true');
   await nav(page, 'Today');
   await page.getByRole('heading', { name: 'Today, Nov 11' }).waitFor();
 

@@ -166,8 +166,76 @@ export function exerciseHistory(days, ex) {
 
 const APP = 'workout-tracker';
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const NOT_BACKUP = 'That file is not a Workout Tracker backup.';
 const number = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+
+export const DEFAULT_REMINDER = { enabled: false, time: '16:00', days: [1, 2, 3, 4, 5, 6] };
+const KIND_LABEL = { gym: 'Gym day', cardio: 'Cardio day', rest: 'Rest day' };
+
+export function planDone(date, day) {
+  const plan = SCHEDULE[weekdayOf(date)];
+  return Boolean((plan.kind === 'gym' && setsDone(day) > 0)
+    || (plan.kind === 'cardio' && cardioOf(day).length > 0)
+    || (plan.kind === 'rest' && (day?.rest || cardioOf(day).length > 0)));
+}
+
+export function reminderFor(date) {
+  const plan = SCHEDULE[weekdayOf(date)];
+  const label = KIND_LABEL[plan.kind] || 'Workout';
+  return {
+    kind: plan.kind,
+    title: `${label}: ${plan.title}`,
+    body: `${plan.time} · Open Workout Tracker to log today's session.`,
+  };
+}
+
+export function reminderDue({ reminder, date, nowTime, day, lastSent }) {
+  if (!reminder?.enabled || lastSent === date) return false;
+  const days = Array.isArray(reminder.days) ? reminder.days : DEFAULT_REMINDER.days;
+  if (!days.includes(weekdayOf(date))) return false;
+  if (!TIME.test(reminder.time ?? '') || !TIME.test(nowTime ?? '') || nowTime < reminder.time) return false;
+  if (day?.rest || planDone(date, day)) return false;
+  return true;
+}
+
+export function makeCalendar({ startDate, reminder = DEFAULT_REMINDER, today }) {
+  const base = ISO.test(startDate ?? '') ? startDate : today;
+  const firstMonday = mondayOf(base);
+  const time = TIME.test(reminder?.time ?? '') ? reminder.time : DEFAULT_REMINDER.time;
+  const [hh, mm] = time.split(':');
+  const days = Array.isArray(reminder?.days) ? reminder.days : DEFAULT_REMINDER.days;
+  const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Workout Tracker//EN',
+    'CALSCALE:GREGORIAN',
+  ];
+  for (const d of days) {
+    if (!Number.isInteger(d) || d < 0 || d > 6) continue;
+    const offset = (d + 6) % 7;
+    const firstDate = addDays(firstMonday, offset).replaceAll('-', '');
+    const info = reminderFor(addDays(firstMonday, offset));
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:workout-tracker-${d}@local`,
+      `DTSTART:${firstDate}T${hh}${mm}00`,
+      'DURATION:PT40M',
+      `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[d]};COUNT=${WEEKS}`,
+      `SUMMARY:${info.title}`,
+      `DESCRIPTION:${info.body}`,
+      'BEGIN:VALARM',
+      'TRIGGER:PT0M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${info.title}`,
+      'END:VALARM',
+      'END:VEVENT',
+    );
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
 
 function cleanSet(s) {
   return { weight: number(s?.weight), value: number(s?.value), done: s?.done === true };
@@ -226,6 +294,17 @@ export function cleanSettings(raw) {
   if ([60, 75, 90].includes(raw?.rest)) out.rest = raw.rest;
   if (WEIGHT_STEPS.includes(raw?.step)) out.step = raw.step;
   if (typeof raw?.beep === 'boolean') out.beep = raw.beep;
+  if (raw?.reminder && typeof raw.reminder === 'object') {
+    const r = raw.reminder;
+    const days = Array.isArray(r.days)
+      ? [...new Set(r.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6))]
+      : [...DEFAULT_REMINDER.days];
+    out.reminder = {
+      enabled: r.enabled === true,
+      time: TIME.test(r.time ?? '') ? r.time : DEFAULT_REMINDER.time,
+      days,
+    };
+  }
   return out;
 }
 
