@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_REMINDER, addDays, cleanSettings, exerciseHistory, isEmptyDay, lastCardio, lastPerformance, makeBackup, makeCalendar, mondayOf, moderateMinutes, nextMonday, parseBackup,
   programRows, programTotals, programWeek, readyToIncrease, reminderDue, reminderFor, setCountFor, setsDone, statusOf, weekSummary, dayExerciseIds, suggestNext,
-} from '../js/logic.js';
-import { ALL_FAMILIES, EXTRA_FAMILIES, lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, gifUrl, moveById, sameFamily, target, videoUrl } from '../js/plan.js';
+} from '../src/app/domain/logic.ts';
+import { ALL_FAMILIES, EXTRA_FAMILIES, lookupMove, customMove, MAX_SETS, EXERCISES, MOVES, ROUTINES, STEP_IDS, TOTAL_SETS, alternatesOf, gifUrl, moveById, sameFamily, target, videoUrl } from '../src/app/domain/plan.ts';
+import { hasAnimation, hasArt } from '../src/app/domain/art.ts';
 
 const LEG = EXERCISES.find(e => e.id === 'leg-press');
 const PLANK = EXERCISES.find(e => e.id === 'plank');
@@ -450,4 +451,12 @@ test('daily reminders describe the workout day, respect time/days/completion, an
   assert.match(ics, /SUMMARY:Gym day: Full-body machine workout/);
   assert.match(ics, /SUMMARY:Cardio day: Brisk walk or cycling/);
   assert.match(ics, /BEGIN:VALARM/);
+});
+
+test('every built-in exercise and non-watch routine step has art and every non-plank exercise animates', () => {
+  const steps = Object.values(ROUTINES).flatMap(r => r.steps.filter(s => !s.watch));
+  const noArt = [...MOVES, ...steps].filter(m => !hasArt(m.id)).map(m => m.id);
+  assert.deepEqual(noArt, []);
+  const noAnim = MOVES.filter(m => m.id !== 'plank' && !hasAnimation(m.id)).map(m => m.id);
+  assert.deepEqual(noAnim, []);
 });

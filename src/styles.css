@@ -1,0 +1,329 @@
+/* Workout Tracker layers on top of angular-pwa-kit Tailwind CSS v4 + DaisyUI v5 theme. */
+@import "./app/kit/theme.css";
+
+:root {
+  --wt-gym: var(--color-info);
+  --wt-on-gym: var(--color-info-content);
+  --wt-cardio: var(--color-warning);
+  --wt-on-cardio: var(--color-warning-content);
+  --wt-rest: color-mix(in oklab, var(--color-base-content) 18%, var(--color-base-200));
+  --wt-empty: var(--color-base-200);
+  --wt-art-bg: var(--color-base-200);
+  --wt-art-frame: color-mix(in oklab, var(--color-base-content) 38%, transparent);
+  --wt-art-tower: var(--color-base-300);
+  --wt-art-plate: color-mix(in oklab, var(--color-base-content) 54%, transparent);
+  --wt-art-pad: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  --wt-art-lever: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+  --wt-art-cable: color-mix(in oklab, var(--color-base-content) 48%, transparent);
+  --wt-art-body: var(--color-primary);
+  --wt-art-arm: color-mix(in oklab, var(--color-primary) 78%, var(--color-base-content));
+  --wt-art-far: color-mix(in oklab, var(--color-primary) 42%, var(--color-base-100));
+}
+
+/* Calendar status colors */
+.cell[data-s=gym] {
+  background: var(--wt-gym);
+  color: var(--wt-on-gym);
+}
+
+.cell[data-s=cardio] {
+  background: var(--wt-cardio);
+  color: var(--wt-on-cardio);
+}
+
+.cell[data-s=rest] {
+  background: var(--wt-rest);
+  color: var(--color-base-content);
+}
+
+.cell[data-s=missed] {
+  background: var(--color-base-200);
+  color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+  border: 1.5px dashed color-mix(in oklab, var(--color-base-content) 32%, transparent);
+}
+
+.cell[data-s=both] {
+  background: linear-gradient(
+    135deg,
+    var(--wt-gym) calc(50% - 1px),
+    var(--color-base-100) calc(50% - 1px) calc(50% + 1px),
+    var(--wt-cardio) calc(50% + 1px)
+  );
+}
+
+.cell .g,
+.cell .c {
+  position: absolute;
+  font-size: .68rem;
+  line-height: 1;
+}
+
+.cell .g {
+  top: 13%;
+  left: 15%;
+  color: var(--wt-on-gym);
+}
+
+.cell .c {
+  bottom: 13%;
+  right: 15%;
+  color: var(--wt-on-cardio);
+}
+
+.cell.mini {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  font-size: .68rem;
+  border-radius: 5px;
+  cursor: default;
+  vertical-align: middle;
+}
+
+/* Week strip and 12-week calendar */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.calendar {
+  display: grid;
+  grid-template-columns: 24px repeat(7, 1fr);
+  gap: 4px;
+  max-width: 420px;
+  margin: 8px auto 6px;
+  align-items: center;
+}
+
+/* Exercise sets grid */
+.set {
+  display: grid;
+  grid-template-columns: 28px 1fr 1fr 48px;
+  gap: 8px;
+  align-items: center;
+}
+
+.set.done input {
+  background: color-mix(in oklab, var(--color-success) 14%, var(--color-base-100));
+  border-color: transparent;
+}
+
+.exercise {
+  border-top: 1px solid var(--color-base-300);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exercise.complete h3::after {
+  content: " ✓";
+  color: var(--color-success);
+}
+
+.tick {
+  width: 48px;
+  height: 44px;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 30%, transparent);
+  background: transparent;
+  color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tick[aria-pressed=true] {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-success-content);
+}
+
+/* Exercise art & muscle map */
+.art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.art line,
+.art polyline {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.art-bg { fill: var(--wt-art-bg); }
+.art-floor { stroke: color-mix(in oklab, var(--color-base-content) 35%, transparent); }
+.art-frame { stroke: var(--wt-art-frame); }
+.art-pad { stroke: var(--wt-art-pad); }
+.art-pad-fill { fill: var(--wt-art-pad); }
+.art-lever { stroke: var(--wt-art-lever); }
+.art-grip, .art-band { stroke: var(--wt-cardio); }
+.art-pin { fill: var(--wt-cardio); }
+.art-cable { stroke: var(--wt-art-cable); stroke-width: 1.5; }
+.art-pulley { fill: var(--wt-art-lever); }
+.art-tower { fill: var(--wt-art-tower); }
+.art-plate { fill: var(--wt-art-plate); }
+.art-body { stroke: var(--wt-art-body); }
+.art-body-fill { fill: var(--wt-art-body); }
+.art-body.art-arm { stroke: var(--wt-art-arm); }
+.art-far { stroke: var(--wt-art-far); }
+.art-arrow { stroke: var(--color-base-content); stroke-width: 2.5; }
+.art-label { fill: color-mix(in oklab, var(--color-base-content) 75%, transparent); font-size: 13px; font-weight: 600; }
+
+.muscle-map { width: 17px; height: 21px; flex: none; }
+.muscle-base-fill { fill: color-mix(in oklab, var(--color-base-content) 32%, transparent); }
+.muscle-base { stroke: color-mix(in oklab, var(--color-base-content) 32%, transparent); stroke-linecap: round; }
+.muscle-hit { fill: var(--wt-cardio); }
+.muscle-hit-limb { stroke: var(--wt-cardio); stroke-linecap: round; }
+
+.art-thumb {
+  flex: none;
+  width: 76px;
+  padding: 0;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.625rem;
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.step-thumb {
+  width: 52px;
+  border-radius: 0.5rem;
+}
+
+.art-placeholder {
+  cursor: default;
+}
+
+.art-hint {
+  display: block;
+  width: 100%;
+  font-size: .68rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
+  background: var(--color-base-100);
+  border-top: 1px solid var(--color-base-300);
+  padding: 1px 0;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.art-single { max-width: 60%; margin: 0 auto; }
+.art-demo { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.art-anim { max-width: 340px; border-radius: 0.75rem; overflow: hidden; }
+.media-links { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.ext-link { font-size: .86rem; white-space: nowrap; }
+
+/* Charts */
+.bar-cardio { fill: var(--wt-cardio); }
+.line-gym { fill: none; stroke: var(--wt-gym); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.dot-gym { fill: var(--wt-gym); stroke: var(--color-base-100); stroke-width: 2; }
+
+/* Floating rest/hold timer bar (#rest) */
+.rest-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 460px);
+  background: var(--color-neutral);
+  color: var(--color-neutral-content);
+  border-radius: 0.875rem;
+  padding: 10px 12px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 35;
+  overflow: hidden;
+}
+
+.rest-bar > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .9rem;
+}
+
+.rest-bar > b {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.rest-bar button {
+  color: inherit;
+  border-color: color-mix(in oklab, var(--color-neutral-content) 40%, transparent);
+}
+
+.rest-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: color-mix(in oklab, var(--color-neutral-content) 22%, transparent);
+}
+
+#rest-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+  transition: width .25s linear;
+}
+
+/* Routine accordion summary indicator */
+details.routine > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details.routine > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.routine > summary::after {
+  content: "▾";
+  opacity: .65;
+}
+
+details.routine:not([open]) > summary::after {
+  content: "▸";
+}
+
+/* Effort toggle & day chip */
+.effort-btn[aria-pressed=true],
+.day-chip[aria-pressed=true],
+.chip-btn[aria-pressed=true] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+[id^="plan-"] {
+  scroll-margin-top: 68px;
+}
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
