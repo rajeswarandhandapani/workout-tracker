@@ -1,80 +1,51 @@
-# Workout Tracker
+# Workout Tracker (Angular + Tailwind CSS + DaisyUI)
 
-A daily log for a 12-week heart-health plan: three gym days, three cardio days and one rest day
-each week. It runs entirely in the browser with no server or account, and works offline once
-it has been opened. Logs stay on the device.
+A daily log for a 12-week heart-health plan: three gym days, three cardio days, and one rest day each week. It runs entirely in the browser with no server or account, works offline via `@angular/service-worker`, and keeps all logs on the device in IndexedDB.
 
-## Run it
+*(The original zero-build vanilla JS + `pwa-kit` v1.0.0 checkpoint is preserved on branch `main` at tag `v1-vanilla`.)*
 
-```bash
-npm start
+## Live App & Deployment
+
+- **URL:** `https://rajeswarandhandapani.com/workout-tracker/`
+- Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which runs `npm ci`, runs `npm test`, builds with `--base-href /workout-tracker/`, and deploys directly via `actions/deploy-pages` (GitHub Pages **Source: GitHub Actions**, custom domain blank so it inherits `rajeswarandhandapani.com`).
+
+## Run locally
+
+```powershell
+npm.cmd install
+npm.cmd start
 ```
 
-Then open http://localhost:4175. Node is the only requirement.
+Then open `http://localhost:4183`.
 
-## How it is built
+## Build & Test
 
-Plain HTML, CSS and JavaScript modules, with no framework, build step or third-party runtime code.
+```powershell
+# Domain unit tests (plan, progressive suggestions, dates, .ics reminders, backups, SVG art specs)
+npm.cmd test
 
-| File | Purpose |
+# Production build (GitHub Pages subfolder base-href + service worker)
+npm.cmd run build:pages
+
+# Local production build (relative base-href) & full Playwright E2E + offline + v1 migration test
+npm.cmd run build
+npm.cmd run test:browser
+```
+
+Tests use made-up workouts. `.gitignore` blocks backup files so personal logs are not committed by accident.
+
+## Architecture & Data Compatibility
+
+Built with standalone, zoneless Angular (Signals, `@if`/`@for`, hash routing), **Tailwind CSS v4 + DaisyUI v5** (system-aware light/dark + user-selectable presets), and shared kit primitives synced from [`angular-pwa-kit`](../angular-pwa-kit) (`src/app/kit/`).
+
+| Path | Purpose |
 | --- | --- |
-| `js/plan.js` | The plan itself: schedule, exercises, targets and guidance |
-| `js/logic.js` | Dates, weekly totals, day status and backup checks |
-| `js/app.js` | Screens |
-| `js/timer.js` | Rest timer |
-| `js/charts.js` | Progress charts |
-| `js/art.js` | Exercise drawings, made in code with generic machine shapes |
-| `js/store.js` | IndexedDB storage |
-| `js/ui.js` | Shared page helpers |
-| `sw.js` | Offline support. List any new file in `FILES` |
+| `src/app/domain/` (`plan.ts`, `logic.ts`, `art.ts`, `models.ts`) | 12-week workout plan, progression logic, dates/reminders, SVG exercise art specs |
+| `src/app/services/` (`workout-store`, `workout-state`, `rest-timer`, `reminder`) | IndexedDB persistence, reactive workout log state, rest timer, `.ics` reminders |
+| `src/app/views/` (`today/`, `progress/`, `plan/`, `data/`) | Daily workout view, 12-week progress calendar & charts, plan overview, backups & theme settings |
+| `src/app/kit/` | Shared `angular-pwa-kit` theme, IndexedDB helper, shell, toast, timer, and chart utilities |
+| `ngsw-config.json` | Offline asset caching via `@angular/service-worker` |
 
-Web apps can't start an Apple Watch workout or read its data, because Apple only exposes that to
-native apps. The Watch steps in each routine are reminders of which workout to choose.
-
-To change the plan, edit `js/plan.js`. Personal details and lab results are deliberately left out
-of the code, because this repository may be published.
-
-## Tests
-
-```bash
-npm test
-```
-
-```bash
-npm run test:browser
-```
-
-Tests use made-up workouts. `.gitignore` blocks backup files, so personal logs can't be
-committed by accident.
-
-## Hosting & Deploying to GitHub Pages
-
-Any static host works. All paths are relative, so it can live in a subfolder of GitHub Pages.
-The page's Content Security Policy only allows requests to its own site.
-
-For standalone GitHub Pages, push this repo to GitHub and enable **Settings → Pages → Deploy from branch `main` (root folder)**.
-
-### Deploying to `rajeswarandhandapani.com/workout-tracker/` with `git subtree`
-
-Classic GitHub Pages does not support Git submodules, so files are mirrored into `rajeswarandhandapani.github.io` using `git subtree`.
-
-**Before pushing changes**, ensure any new JS/icon files are listed in `sw.js` (`FILES`) and bump `CACHE` if cached assets changed (`npm run test:browser` checks `sw.js` coverage).
-
-**One-time setup (already done):** imported this repo into `rajeswarandhandapani.github.io` as a squashed subtree:
-
-```powershell
-cd c:\prorajes\repos\rajeswarandhandapani.github.io
-git subtree add --prefix=workout-tracker git@github.com:rajeswarandhandapani/workout-tracker.git main --squash -m "Add workout-tracker ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))"
-git push origin master
-```
-
-**Syncing future updates** (after pushing new commits to `workout-tracker`):
-
-```powershell
-cd c:\prorajes\repos\rajeswarandhandapani.github.io
-git subtree pull --prefix=workout-tracker git@github.com:rajeswarandhandapani/workout-tracker.git main --squash -m "Sync workout-tracker ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))"
-git push origin master
-```
-
-`--squash` keeps `workout-tracker`'s full commit history out of the website repo's log—only one squashed commit lands per sync. Passing `-m` avoids opening Vim (in Git Bash, macOS, or Linux, swap `$(Get-Date -Format 'yyyy-MM-dd HH:mm')` with `$(date '+%Y-%m-%d %H:%M')`).
-
+- **Data continuity:** Preserves IndexedDB `'workout-tracker'` (v1: `days` keyed by `date` and `kv`) and `.json` backup compatibility so existing `v1-vanilla` workout logs, swaps, custom exercises, and settings continue to work seamlessly.
+- **Security:** Enforces a strict Content Security Policy with zero external network requests.
+- **Apple Watch note:** Web apps cannot start an Apple Watch workout or read HealthKit data directly, so the Watch steps in each routine act as reminders. To adjust the workout plan, edit `src/app/domain/plan.ts`.
